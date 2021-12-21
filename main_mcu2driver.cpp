@@ -12,7 +12,7 @@
 // Higher STALL_VALUE_2 value -> higher torque to indicate the stall and vice versa
 // Lower  STALL_VALUE_2 value -> lower torque to indicate stall detection
 // the diag_pin will be 1 when SG_THRS*2 > SG_RESULT
-#define STALL_VALUE_2      28       // [0..255] optimized
+#define STALL_VALUE_2      30       // [0..255] optimized
 
 bool shaft = true;
 
@@ -57,9 +57,9 @@ void setup() {
   driver2.begin();
   driver2.toff(4);
   driver2.blank_time(24);
-  driver2.rms_current(1500); // mA max 1.5
+  driver2.rms_current(500); // mA max 1.5
   driver2.I_scale_analog(true); // true: Use voltage supplied to VREF as current reference
-  driver2.microsteps(0); // up to 256 or 1/256
+  driver2.microsteps(2); // up to 256 or 1/256
   driver2.TCOOLTHRS(0xFFFFF); // 20bit max
   driver2.semin(5);
   driver2.semax(2);
@@ -108,7 +108,8 @@ void loop() {
 
     // control stepper via UART
     if (flag) {
-      driver2.VACTUAL(1000); // set speed of motor
+      digitalWrite(ledPin, 0); // led off if no stall is detected
+      driver2.VACTUAL(500); // set speed of motor
       Serial.print("sg_result: ");
       Serial.print(driver2.SG_RESULT(), DEC); // stallguard value
       Serial.print(" diag: ");
@@ -117,6 +118,7 @@ void loop() {
 
     // if ((driver2.SG_RESULT()) < (STALL_VALUE_2*2)) {
     if (diag_bool) {
+      digitalWrite(ledPin, 1); // led on if the stall is detected
       driver2.VACTUAL(0);
       Serial.println("Stall detected !");
       flag = false;
