@@ -3,6 +3,12 @@ Using a TMC2209 stepper driver module with stepper motor NEMA17 on the ESP32 for
 
 _**This repo is not yet completed, further patch might be updated**_
 
+## Datasheet
+
+Technical: https://wiki.fysetc.com/Silent2209/
+
+Datasheet: https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2209_Datasheet_V103.pdf
+
 ## Starting up
 
 1. Open the first terminal, run roscore
