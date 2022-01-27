@@ -1,7 +1,7 @@
 ## ESP32 + TMC2209 + StepperMotor(NEMA17)
 Using a TMC2209 stepper driver module with stepper motor NEMA17 on the ESP32 for homing position
 
-_**This repo is not yet completed, further patch might be updated**_
+_**This repo is not yet completed, further patch will be updated**_
 
 ## Datasheet
 
