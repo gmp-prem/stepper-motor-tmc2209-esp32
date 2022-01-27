@@ -5,7 +5,7 @@ _**This repo is not yet completed, further patch might be updated**_
 
 ## Datasheet
 
-Technical: https://wiki.fysetc.com/Silent2209/
+Technical document: https://wiki.fysetc.com/Silent2209/
 
 Datasheet: https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2209_Datasheet_V103.pdf
 
