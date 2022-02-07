@@ -1,0 +1,139 @@
+#include <TMCStepper.h>
+#include <Arduino.h>
+#include <HardwareSerial.h>
+
+#define MAX_SPEED        100 // In timer value
+#define MIN_SPEED      1000
+
+#define STALL_VALUE     100 // Threshold [0..255] higher -> less sensitive, lower -> more sensitive to torque
+
+#define EN_PIN           4 // Enable
+#define DIR_PIN          2 // Direction
+#define STEP_PIN         3 // Step (PWM)
+#define RX0            0 // TMC2208/TMC2224 SoftwareSerial receive pin
+#define TX1            1 // TMC2208/TMC2224 SoftwareSerial transmit pin
+#define SERIAL_PORT Serial // HardwareSerial port
+
+#define DRIVER_ADDRESS 0b00 // TMC2209 Driver address according to MS1 and MS2
+
+#define R_SENSE 0.11f // Match to your driver' SilentStepStick series use 0.11
+
+// Select your stepper driver type
+TMC2209Stepper driver(&SERIAL_PORT, R_SENSE, DRIVER_ADDRESS);
+// TMC2209Stepper driver(RX0, TX1, R_SENSE, DRIVER_ADDRESS);
+
+using namespace TMC2209_n;
+
+// Using direct register manipulation can reach faster stepping times
+#define STEP_PORT     PORTF // Match with STEP_PIN
+#define STEP_BIT_POS      0 // Match with STEP_PIN
+
+ISR(TIMER1_COMPA_vect){
+  // STEP_PORT ^= 1 << STEP_BIT_POS;
+  digitalWrite(STEP_PIN, !digitalRead(STEP_PIN));
+}
+
+void setup() {
+  Serial.begin(115200);         // Init serial port and set baudrate pc and arduino
+  while(!Serial);               // Wait for serial port to connect
+  Serial.println("\nStart...");
+
+  // TODO Arduino does not com with tmc2209?
+  SERIAL_PORT.begin(115200, SERIAL_8N1, RX0, TX1);  // UART serial com for tmc2209 and arduino nano
+  driver.beginSerial(115200);
+
+  pinMode(EN_PIN, OUTPUT);
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+
+  digitalWrite(DIR_PIN, HIGH); // TODO report which dir ref to some motoman joint?
+  digitalWrite(EN_PIN, LOW); // low=en, high=disen hardware
+
+  driver.begin();
+  driver.toff(4); // Enables driver in software
+  driver.blank_time(24);
+  driver.rms_current(1500); // motor rms 1500 mA = 1.5A
+  driver.microsteps(1);
+  driver.TCOOLTHRS((2^10)-1); // 20bit max, now set to 10bit:1024values (0-1023)
+  driver.semin(5);
+  driver.semax(2);
+  driver.sedn(0b01);
+
+  // driver.pdn_disable(true); // set this to 1 when using UART
+
+  driver.SGTHRS(STALL_VALUE);
+  
+
+  // Set stepper interrupt
+  {
+    cli();//stop interrupts
+    TCCR1A = 0;// set entire TCCR1A register to 0
+    TCCR1B = 0;// same for TCCR1B
+    TCNT1  = 0;//initialize counter value to 0
+    OCR1A = 256;// = (16*10^6) / (1*1024) - 1 (must be <65536)
+    // turn on CTC mode
+    TCCR1B |= (1 << WGM12);
+    // Set CS11 bits for 8 prescaler
+    TCCR1B |= (1 << CS11);// | (1 << CS10);
+    // enable timer compare interrupt
+    TIMSK1 |= (1 << OCIE1A);
+    sei();//allow interrupts
+  }
+}
+
+bool shaft = false;
+int max_step = 50;
+uint16_t i = max_step;
+
+void loop() {
+  static uint32_t last_time=0;
+  uint32_t ms = millis();
+
+  while(Serial.available() > 0) {
+    int8_t read_byte = Serial.read();
+    #ifdef USING_TMC2660
+      if (read_byte == '0')      { TIMSK1 &= ~(1 << OCIE1A); driver.toff(0); }
+      else if (read_byte == '1') { TIMSK1 |=  (1 << OCIE1A); driver.toff(driver.savedToff()); }
+    #else
+      if (read_byte == '0')      { TIMSK1 &= ~(1 << OCIE1A); digitalWrite( EN_PIN, HIGH ); }
+      else if (read_byte == '1') { TIMSK1 |=  (1 << OCIE1A); digitalWrite( EN_PIN,  LOW ); }
+    #endif
+    else if (read_byte == '+') { if (OCR1A > MAX_SPEED) OCR1A -= 20; }
+    else if (read_byte == '-') { if (OCR1A < MIN_SPEED) OCR1A += 20; }
+  }
+
+  if((ms-last_time) > 100) { // run every 0.2 sec
+    last_time = ms;
+
+    digitalWrite(STEP_PIN, HIGH);
+    // delayMicroseconds(100);
+    delay(100);
+    digitalWrite(STEP_PIN, LOW);
+    // delayMicroseconds(100);
+    delay(100);
+    i = i-1;
+
+    Serial.print("i: ");
+    Serial.print(i);
+    Serial.print(" ");
+    /*
+    Serial.print("Status: ");
+    Serial.print(driver.SG_RESULT());
+    Serial.print(" ");
+    Serial.print(driver.SG_RESULT() < STALL_VALUE, DEC);
+    Serial.print(" ");
+    Serial.println(driver.cs2rms(driver.cs_actual()), DEC); 
+    */
+  }
+
+  // re-step and invert direction of shaft
+  if (i==0){
+    i=max_step;
+    shaft = !shaft; 
+    digitalWrite(DIR_PIN, shaft);
+  }
+
+
+  
+  // driver.shaft(shaft); // Does not work
+}
