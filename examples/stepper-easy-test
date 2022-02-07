@@ -1,0 +1,26 @@
+// on PlatformIO
+#include <Arduino.h>
+
+#define dirPin 2
+#define stepPin 3
+// #define ENN 5
+
+void setup() {
+  // Declare pins as output:
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  // pinMode(ENN, OUTPUT);
+  
+  // digitalWrite(ENN, LOW);
+  digitalWrite(dirPin, HIGH);
+
+}
+
+void loop() {
+  // if delay is very short, motor will beep
+  digitalWrite(stepPin, HIGH);
+  delay(1);
+  digitalWrite(stepPin, LOW);
+  delay(1);
+
+}
